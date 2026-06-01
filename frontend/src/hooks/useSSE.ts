@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { LLMCallEvent } from '../types/api'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const apiEnv = import.meta.env.VITE_API_URL
+const API_BASE = apiEnv !== undefined && apiEnv !== null ? apiEnv : 'http://localhost:8080'
 const MAX_EVENTS = 50
 
 export interface SSEState {
