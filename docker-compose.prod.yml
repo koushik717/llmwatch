@@ -12,8 +12,8 @@ services:
   simulator:
     build:
       context: .
-      dockerfile: Dockerfile.api
-    command: sh -c "apk add git && go run ./cmd/simulator -api http://go-api:8080 -rps 5"
+      dockerfile: Dockerfile.simulator
+    command: ["-api", "http://go-api:8080", "-rps", "5"]
     depends_on:
       go-api:
         condition: service_healthy
