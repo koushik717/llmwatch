@@ -125,19 +125,13 @@ func (c *RedisCache) IsDuplicate(ctx context.Context, eventID string) (bool, err
 }
 
 // IncrCallsPerMinute increments the call counter for the current minute bucket.
-// Uses a sorted set with score=unix_second and member=unix_minute_bucket.
 func (c *RedisCache) IncrCallsPerMinute(ctx context.Context, ts time.Time) error {
-	// Bucket to the minute.
 	bucket := ts.Truncate(time.Minute).Unix()
-	member := strconv.FormatInt(bucket, 10)
+	key := fmt.Sprintf("%s:%d", KeyCallsPerMinute, bucket)
 
 	pipe := c.client.Pipeline()
-	pipe.ZIncrBy(ctx, KeyCallsPerMinute, 1, member)
-	// Prune entries older than the window.
-	cutoff := ts.Add(-time.Duration(CallsWindowMinutes) * time.Minute).Unix()
-	pipe.ZRemRangeByScore(ctx, KeyCallsPerMinute, "-inf", strconv.FormatInt(cutoff, 10))
-	// Expire the key itself after the window + buffer.
-	pipe.Expire(ctx, KeyCallsPerMinute, time.Duration(CallsWindowMinutes+5)*time.Minute)
+	pipe.Incr(ctx, key)
+	pipe.Expire(ctx, key, time.Duration(CallsWindowMinutes+5)*time.Minute)
 
 	_, err := pipe.Exec(ctx)
 	if err != nil {
@@ -147,34 +141,33 @@ func (c *RedisCache) IncrCallsPerMinute(ctx context.Context, ts time.Time) error
 }
 
 // GetCallsPerMinute returns calls per minute for the last `minutes` minutes.
-// Fills in zero for buckets with no calls.
 func (c *RedisCache) GetCallsPerMinute(ctx context.Context, minutes int) ([]*models.CallsPerMinutePoint, error) {
 	now := time.Now().Truncate(time.Minute)
 	from := now.Add(-time.Duration(minutes) * time.Minute)
 
-	// Fetch all members in the window.
-	members, err := c.client.ZRangeWithScores(ctx, KeyCallsPerMinute,
-		0, -1, // all
-	).Result()
+	var keys []string
+	for i := 0; i < minutes; i++ {
+		t := from.Add(time.Duration(i) * time.Minute)
+		keys = append(keys, fmt.Sprintf("%s:%d", KeyCallsPerMinute, t.Unix()))
+	}
+
+	vals, err := c.client.MGet(ctx, keys...).Result()
 	if err != nil {
 		return nil, fmt.Errorf("redis: get calls per minute: %w", err)
 	}
 
-	// Build a map of bucket -> count.
-	counts := make(map[int64]int64, len(members))
-	for _, m := range members {
-		bucket, _ := strconv.ParseInt(m.Member.(string), 10, 64)
-		counts[bucket] = int64(m.Score)
-	}
-
-	// Build the time series with zeros for missing minutes.
 	points := make([]*models.CallsPerMinutePoint, 0, minutes)
 	for i := 0; i < minutes; i++ {
 		t := from.Add(time.Duration(i) * time.Minute)
-		bucket := t.Unix()
+		var count int64
+		if vals[i] != nil {
+			if strVal, ok := vals[i].(string); ok {
+				count, _ = strconv.ParseInt(strVal, 10, 64)
+			}
+		}
 		points = append(points, &models.CallsPerMinutePoint{
 			Minute:    t,
-			CallCount: counts[bucket],
+			CallCount: count,
 		})
 	}
 	return points, nil
