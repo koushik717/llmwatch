@@ -1,0 +1,26 @@
+# ── Build stage ───────────────────────────────────────────────────────────────
+FROM golang:1.22-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN GONOSUMCHECK=* GONOSUMDB=* GOPROXY=direct go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GONOSUMCHECK=* \
+    go build -mod=mod -ldflags="-w -s" -o /bin/llmwatch-api ./cmd/api
+
+# ── Runtime stage ─────────────────────────────────────────────────────────────
+FROM alpine:latest
+
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /bin/llmwatch-api /bin/llmwatch-api
+COPY --from=builder /app/internal/db/migrations /internal/db/migrations
+
+EXPOSE 8080
+
+ENTRYPOINT ["/bin/llmwatch-api"]

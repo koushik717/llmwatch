@@ -1,0 +1,33 @@
+# Binaries
+bin/
+*.exe
+*.test
+
+# Go
+*.out
+coverage.out
+coverage.html
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Build artifacts
+dist/
