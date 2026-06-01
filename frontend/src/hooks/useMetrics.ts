@@ -10,8 +10,10 @@ import type {
   DashboardData,
 } from '../types/api'
 
-const apiEnv = import.meta.env.VITE_API_URL
-const API_BASE = apiEnv !== undefined && apiEnv !== null ? apiEnv : 'http://localhost:8080'
+let API_BASE = import.meta.env.VITE_API_URL
+if (!API_BASE || API_BASE === '""' || API_BASE === "''") {
+  API_BASE = import.meta.env.DEV ? 'http://localhost:8080' : ''
+}
 
 async function fetchJSON<T>(endpoint: string): Promise<T> {
   const res = await fetch(`${API_BASE}${endpoint}`)
