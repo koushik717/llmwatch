@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -63,6 +64,7 @@ type HourlyMetrics struct {
 type PostgresStore struct {
 	pool   *pgxpool.Pool
 	logger *slog.Logger
+	partitions sync.Map
 }
 
 // StoreConfig holds configuration for creating a PostgresStore.
@@ -312,6 +314,11 @@ func (s *PostgresStore) EnsurePartition(ctx context.Context, date time.Time) err
 	// Use UTC dates for partition names.
 	d := date.UTC().Truncate(24 * time.Hour)
 	partitionName := fmt.Sprintf("llm_calls_%s", d.Format("2006_01_02"))
+	
+	if _, ok := s.partitions.Load(partitionName); ok {
+		return nil // Already ensured in memory
+	}
+
 	from := d.Format("2006-01-02")
 	to := d.Add(24 * time.Hour).Format("2006-01-02")
 
@@ -325,6 +332,7 @@ func (s *PostgresStore) EnsurePartition(ctx context.Context, date time.Time) err
 	if err != nil {
 		return fmt.Errorf("db: ensure partition %s: %w", partitionName, err)
 	}
+	s.partitions.Store(partitionName, true)
 	s.logger.Debug("partition ensured", "partition", partitionName, "from", from, "to", to)
 	return nil
 }
