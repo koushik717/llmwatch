@@ -24,14 +24,14 @@ func NewRouter(h *Handlers) http.Handler {
 	r.Get("/health", h.HandleHealth)
 	r.Handle("/metrics", promhttp.Handler())
 
-	// SSE stream.
-	r.Get("/events/stream", h.HandleSSEStream)
+
 
 	// API v1.
 	r.Route("/api/v1", func(r chi.Router) {
 		// Event ingestion.
 		r.Post("/events", h.HandleIngestEvent)
 		r.Post("/events/batch", h.HandleIngestBatch)
+		r.Get("/events/stream", h.HandleSSEStream)
 
 		// Call history.
 		r.Get("/calls", h.HandleGetCalls)

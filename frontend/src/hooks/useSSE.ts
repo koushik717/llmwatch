@@ -34,7 +34,7 @@ export function useSSE(): SSEState {
     }
 
     try {
-      const es = new EventSource(`${API_BASE}/events/stream`)
+      const es = new EventSource(`${API_BASE}/api/v1/events/stream`)
       esRef.current = es
 
       es.onopen = () => {
