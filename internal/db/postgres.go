@@ -153,7 +153,7 @@ func (s *PostgresStore) GetRecentCalls(ctx context.Context, limit int) ([]*model
 		SELECT event_id, provider, model, latency_ms, input_tokens, output_tokens,
 		       cost_usd, status, COALESCE(error_message, ''), event_ts
 		FROM llm_calls
-		ORDER BY event_ts DESC
+		ORDER BY created_at DESC
 		LIMIT $1
 	`
 
