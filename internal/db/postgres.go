@@ -192,7 +192,7 @@ func (s *PostgresStore) GetSummary(ctx context.Context, since time.Duration) (*m
 			COALESCE(AVG(latency_ms), 0) as avg_latency,
 			COALESCE(SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0), 0) as error_rate
 		FROM llm_calls
-		WHERE event_ts >= NOW() - $1::interval
+		WHERE created_at >= NOW() - $1::interval
 	`
 
 	interval := fmt.Sprintf("%d seconds", int(since.Seconds()))
@@ -216,7 +216,7 @@ func (s *PostgresStore) GetErrorRates(ctx context.Context, since time.Duration) 
 			SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as errors,
 			COALESCE(SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0), 0) as error_rate
 		FROM llm_calls
-		WHERE event_ts >= NOW() - $1::interval
+		WHERE created_at >= NOW() - $1::interval
 		GROUP BY provider, model
 		ORDER BY error_rate DESC
 	`
@@ -252,7 +252,7 @@ func (s *PostgresStore) GetProviderComparison(ctx context.Context, since time.Du
 			COALESCE(SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0), 0) as error_rate,
 			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms), 0) as p95_latency_ms
 		FROM llm_calls
-		WHERE event_ts >= NOW() - $1::interval
+		WHERE created_at >= NOW() - $1::interval
 		GROUP BY provider
 		ORDER BY total_calls DESC
 	`
